@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RateShield — открытое демо rate limiter'а</title>
+<meta name="description" content="Открытый демонстрационный проект: Fixed Window, Sliding Window и Token Bucket rate limiting, живой дашборд, self-host на Redis или in-memory.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<div class="scanlines" aria-hidden="true"></div>
+
+<header class="nav">
+  <div class="nav__inner">
+    <a class="nav__brand" href="#top">
+      <span class="nav__brand-icon">◈</span>RateShield
+    </a>
+    <nav class="nav__links">
+      <a href="#playground">Playground</a>
+      <a href="#algorithms">Алгоритмы</a>
+      <a href="#dashboard">Дашборд</a>
+      <a href="#docs">API</a>
+    </nav>
+    <span class="nav__status" id="navStatus"><span class="dot dot--pending"></span>connecting…</span>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero__grid" aria-hidden="true"></div>
+    <p class="eyebrow">ОТКРЫТОЕ&nbsp;ИНЖЕНЕРНОЕ&nbsp;ДЕМО</p>
+    <h1 class="hero__title">Остановите поток запросов<br>раньше, чем он утопит ваш API</h1>
+    <p class="hero__subtitle">
+      Небольшой открытый проект, чтобы показать, как я подхожу к инженерным задачам:
+      три rate-limiting алгоритма, живой дашборд использования и архитектура,
+      которая работает без Redis из коробки и масштабируется на нём же, когда понадобится.
+    </p>
+    <div class="hero__actions">
+      <a href="#playground" class="btn btn--primary">Открыть плейграунд</a>
+      <a href="#docs" class="btn btn--ghost">Смотреть API</a>
+    </div>
+    <div class="hero__badges">
+      <span class="badge">⚡ Fixed / Sliding / Token Bucket</span>
+      <span class="badge">🧠 Redis или in-memory — без конфигурации</span>
+      <span class="badge">📊 Живая аналитика запросов</span>
+    </div>
+  </section>
+
+  <!-- PROBLEM / VALUE -->
+  <section class="value">
+    <div class="value__card">
+      <span class="value__num">01</span>
+      <h3>Один клиент кладёт весь API</h3>
+      <p>Без лимитов один скрипт или баг на стороне клиента способен исчерпать квоту к внешним сервисам и уронить прод для всех остальных.</p>
+    </div>
+    <div class="value__card">
+      <span class="value__num">02</span>
+      <h3>Работает без обвязки</h3>
+      <p>Без Redis сервер сам переключается в in-memory режим — ничего не нужно разворачивать, чтобы посмотреть демо. Добавил Redis — то же приложение стало распределённым.</p>
+    </div>
+    <div class="value__card">
+      <span class="value__num">03</span>
+      <h3>Прозрачность для клиента</h3>
+      <p>Заголовки <code>X-RateLimit-*</code> в каждом ответе — интеграторы видят остаток квоты и время сброса, не гадая вслепую.</p>
+    </div>
+  </section>
+
+  <!-- ALGORITHMS -->
+  <section class="section" id="algorithms">
+    <p class="section__eyebrow">03 алгоритма, один интерфейс</p>
+    <h2 class="section__title">Выбирайте компромисс, а не борьбу с документацией</h2>
+
+    <div class="algo-grid">
+      <article class="algo-card">
+        <div class="algo-card__head">
+          <span class="algo-card__icon">▦</span>
+          <h3>Fixed Window</h3>
+        </div>
+        <p>Простой счётчик на временное окно. Минимум памяти и вычислений.</p>
+        <ul class="algo-card__list">
+          <li>+ Самый дешёвый в эксплуатации</li>
+          <li>+ Предсказуемое поведение</li>
+          <li>− Всплеск x2 на границе окон</li>
+        </ul>
+        <span class="algo-card__tag">Лучше для: внутренние сервисы, низкий риск</span>
+      </article>
+
+      <article class="algo-card algo-card--accent">
+        <div class="algo-card__head">
+          <span class="algo-card__icon">◔</span>
+          <h3>Sliding Window</h3>
+        </div>
+        <p>Скользящий журнал таймстампов — лимит применяется плавно, без скачков на границе.</p>
+        <ul class="algo-card__list">
+          <li>+ Нет burst-эффекта Fixed Window</li>
+          <li>+ Честное распределение во времени</li>
+          <li>− Дороже по памяти (Redis sorted set)</li>
+        </ul>
+        <span class="algo-card__tag">Лучше для: публичные API с высокими требованиями к точности</span>
+      </article>
+
+      <article class="algo-card">
+        <div class="algo-card__head">
+          <span class="algo-card__icon">⛁</span>
+          <h3>Token Bucket</h3>
+        </div>
+        <p>Бакет пополняется токенами непрерывно — допускает короткие всплески, держит средний темп.</p>
+        <ul class="algo-card__list">
+          <li>+ Разрешает легитимные всплески</li>
+          <li>+ Алгоритм Stripe, GitHub, AWS</li>
+          <li>− Чуть сложнее объяснить клиенту</li>
+        </ul>
+        <span class="algo-card__tag">Лучше для: API с неравномерной нагрузкой</span>
+      </article>
+    </div>
+  </section>
+
+  <!-- PLAYGROUND -->
+  <section class="section" id="playground">
+    <p class="section__eyebrow">Живой стенд</p>
+    <h2 class="section__title">Playground</h2>
+    <p class="section__lead">Запросы идентифицируются по твоему IP — двигай ползунки, они реально меняют лимит на бэкенде.</p>
+
+    <div class="playground">
+      <div class="playground__settings">
+        <label>
+          Алгоритм
+          <select id="algorithm">
+            <option value="/fixed">Fixed Window</option>
+            <option value="/sliding">Sliding Window</option>
+            <option value="/token">Token Bucket</option>
+          </select>
+        </label>
+        <label>
+          Лимит: <span id="limitValue">5</span> запросов
+          <input type="range" id="limit" min="1" max="20" value="5">
+        </label>
+        <label>
+          Окно: <span id="windowValue">60</span> сек
+          <input type="range" id="window" min="10" max="120" value="60">
+        </label>
+      </div>
+
+      <div class="playground__controls">
+        <button id="sendBtn" class="btn btn--primary">Отправить запрос</button>
+        <button id="spamBtn" class="btn btn--danger">Спам 10 запросов</button>
+        <button id="clearBtn" class="btn btn--ghost">Очистить лог</button>
+      </div>
+
+      <div class="status-bar">
+        <div class="status-bar__item">
+          <span class="label">Лимит</span>
+          <span id="statusLimit" class="value">–</span>
+        </div>
+        <div class="status-bar__item">
+          <span class="label">Осталось</span>
+          <span id="statusRemaining" class="value">–</span>
+        </div>
+        <div class="status-bar__item">
+          <span class="label">Сброс через</span>
+          <span id="statusReset" class="value">–</span>
+        </div>
+        <div class="status-bar__item">
+          <span class="label">Алгоритм</span>
+          <span id="statusAlgo" class="value">–</span>
+        </div>
+      </div>
+
+      <div class="log" id="log"></div>
+    </div>
+  </section>
+
+  <!-- DASHBOARD -->
+  <section class="section" id="dashboard">
+    <p class="section__eyebrow">Наблюдаемость</p>
+    <h2 class="section__title">Дашборд использования</h2>
+    <p class="section__lead">Агрегируется в реальном времени по всем запросам к демо — пример того, как выглядела бы аналитика в проде.</p>
+
+    <div class="dashboard">
+      <div class="dashboard__stats">
+        <div class="dashboard__stat">
+          <span class="dashboard__stat-value" id="statTotal">0</span>
+          <span class="dashboard__stat-label">Всего запросов</span>
+        </div>
+        <div class="dashboard__stat dashboard__stat--ok">
+          <span class="dashboard__stat-value" id="statOk">0</span>
+          <span class="dashboard__stat-label">Пропущено</span>
+        </div>
+        <div class="dashboard__stat dashboard__stat--blocked">
+          <span class="dashboard__stat-value" id="statBlocked">0</span>
+          <span class="dashboard__stat-label">Заблокировано</span>
+        </div>
+        <div class="dashboard__stat">
+          <span class="dashboard__stat-value" id="statRate">0%</span>
+          <span class="dashboard__stat-label">Block rate</span>
+        </div>
+      </div>
+
+      <div class="dashboard__breakdown" id="algoBreakdown"></div>
+
+      <div class="dashboard__timeline" id="timeline" aria-label="Последние события"></div>
+    </div>
+  </section>
+
+  <!-- DOCS -->
+  <section class="section" id="docs">
+    <p class="section__eyebrow">Интеграция</p>
+    <h2 class="section__title">Один curl — и вы внутри</h2>
+    <pre class="code-block"><code>curl https://ваш-домен/token
+
+# Ответ:
+HTTP/1.1 200 OK
+X-RateLimit-Limit: 5
+X-RateLimit-Remaining: 4
+X-RateLimit-Reset: 60
+X-RateLimit-Algorithm: token-bucket
+
+{"message":"✅ Запрос принят!","remaining":4,"resetInSeconds":60}</code></pre>
+    <div class="endpoints">
+      <div class="endpoints__row"><code>GET /fixed | /sliding | /token</code><span>лимитируемые endpoint'ы демо (принимают ?limit=&window=)</span></div>
+      <div class="endpoints__row"><code>GET /status</code><span>состояние стораджа (Redis / in-memory)</span></div>
+      <div class="endpoints__row"><code>GET /api/stats</code><span>агрегированная аналитика в JSON</span></div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <span>RateShield — открытый демо-проект: Node.js + Redis (или in-memory) + честные алгоритмы.</span>
+  <span class="footer__meta">Fixed Window · Sliding Window · Token Bucket</span>
+</footer>
+
+<script src="/app.js"></script>
+</body>
+</html>
