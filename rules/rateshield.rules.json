@@ -1,0 +1,9 @@
+{
+  "defaults": { "algorithm": "token", "limit": 120, "windowSec": 60, "key": "ip" },
+  "rules": [
+    { "name": "health", "match": "GET /health", "skip": true },
+    { "name": "login", "match": "POST /auth/login", "algorithm": "fixed", "limit": 5, "windowSec": 60, "key": "ip" },
+    { "name": "search", "match": "GET /api/search*", "algorithm": "sliding", "limit": 30, "windowSec": 60, "key": "ip" },
+    { "name": "public-api", "match": "/api/*", "algorithm": "token", "limit": 600, "windowSec": 60, "key": "header:x-api-key" }
+  ]
+}

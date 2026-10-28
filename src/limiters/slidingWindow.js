@@ -1,24 +1,18 @@
 'use strict';
 
 /**
- * Sliding Window: a rolling log of timestamps (Redis sorted set).
- * No boundary burst issue, smooth distribution, but costs more memory
- * (one entry per request within the window) than Fixed Window.
+ * Sliding Window — скользящий журнал таймстампов (sorted set).
+ * Нет всплеска на границе окон; дороже по памяти. Отклонённые запросы не засчитываются.
  */
 async function slidingWindow(store, key, limit, windowSec) {
-  const windowMs = windowSec * 1000;
-  const now = Date.now();
-  const { count, ttlMs } = await store.slidingCount(key, now, windowMs);
-
-  const allowed = count <= limit;
-  const remaining = Math.max(0, limit - count);
-
+  const { allowed, count, ttlMs } = await store.slidingCount(key, limit, windowSec * 1000, Date.now());
   return {
     allowed,
     limit,
     current: count,
-    remaining,
-    resetIn: Math.ceil(ttlMs / 1000),
+    remaining: Math.max(0, limit - count),
+    resetIn: Math.max(1, Math.ceil(ttlMs / 1000)),
+    resetMs: ttlMs, // через сколько мс освободится ближайший слот
   };
 }
 

@@ -3,8 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RateShield — открытое демо rate limiter'а</title>
-<meta name="description" content="Открытый демонстрационный проект: Fixed Window, Sliding Window и Token Bucket rate limiting, живой дашборд, self-host на Redis или in-memory.">
+<title>RateShield — self-hosted rate limiter для API</title>
+<meta name="description" content="Self-hosted rate limiter для API: Fixed Window, Sliding Window и Token Bucket на атомарных Lua-скриптах Redis. Reverse proxy, Express-middleware и HTTP API. Живой плейграунд с режимом сравнения алгоритмов.">
+<meta name="theme-color" content="#07090a">
+<meta property="og:title" content="RateShield — self-hosted rate limiter">
+<meta property="og:description" content="Три алгоритма лимитирования, сравнение в реальном времени и запуск на своём сервере за пару минут.">
+<meta property="og:type" content="website">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
@@ -24,6 +31,7 @@
       <a href="#algorithms">Алгоритмы</a>
       <a href="#dashboard">Дашборд</a>
       <a href="#docs">API</a>
+      <a href="#selfhost">Запусти у себя</a>
     </nav>
     <span class="nav__status" id="navStatus"><span class="dot dot--pending"></span>connecting…</span>
   </div>
@@ -34,20 +42,23 @@
   <!-- HERO -->
   <section class="hero">
     <div class="hero__grid" aria-hidden="true"></div>
-    <p class="eyebrow">ОТКРЫТОЕ&nbsp;ИНЖЕНЕРНОЕ&nbsp;ДЕМО</p>
+    <p class="eyebrow">SELF-HOSTED&nbsp;RATE&nbsp;LIMITER</p>
     <h1 class="hero__title">Остановите поток запросов<br>раньше, чем он утопит ваш API</h1>
     <p class="hero__subtitle">
-      Небольшой открытый проект, чтобы показать, как я подхожу к инженерным задачам:
-      три rate-limiting алгоритма, живой дашборд использования и архитектура,
-      которая работает без Redis из коробки и масштабируется на нём же, когда понадобится.
+      Три rate-limiting алгоритма на атомарных Lua-скриптах Redis, живой дашборд
+      и три способа подключения к вашему продукту: Express-middleware, reverse proxy
+      и HTTP API для любого языка. Работает без Redis из коробки, а на своём сервере
+      или VPS разворачивается за пару минут.
     </p>
     <div class="hero__actions">
       <a href="#playground" class="btn btn--primary">Открыть плейграунд</a>
-      <a href="#docs" class="btn btn--ghost">Смотреть API</a>
+      <a href="#selfhost" class="btn btn--ghost">Запустить у себя</a>
     </div>
     <div class="hero__badges">
       <span class="badge">⚡ Fixed / Sliding / Token Bucket</span>
-      <span class="badge">🧠 Redis или in-memory — без конфигурации</span>
+      <span class="badge">🧠 Redis (атомарно, Lua) или in-memory</span>
+      <span class="badge">🛡️ Fail-open / fail-closed при сбое Redis</span>
+      <span class="badge">🐳 Docker, VPS, любой хостинг с Node</span>
       <span class="badge">📊 Живая аналитика запросов</span>
     </div>
   </section>
@@ -125,53 +136,63 @@
   <section class="section" id="playground">
     <p class="section__eyebrow">Живой стенд</p>
     <h2 class="section__title">Playground</h2>
-    <p class="section__lead">Запросы идентифицируются по твоему IP — двигай ползунки, они реально меняют лимит на бэкенде.</p>
+    <p class="section__lead">Выбери алгоритм или сравни все три на одном и том же потоке запросов. Ползунки и сценарии работают на реальном бэкенде — запросы считаются по твоему IP.</p>
 
-    <div class="playground">
+    <div class="playground" id="pg">
+      <div class="pg-modes" role="tablist" aria-label="Режим плейграунда">
+        <button class="pg-mode pg-mode--fixed is-active" role="tab" aria-selected="true" data-mode="fixed"><span>▦</span> Fixed Window</button>
+        <button class="pg-mode pg-mode--sliding" role="tab" aria-selected="false" data-mode="sliding"><span>◔</span> Sliding Window</button>
+        <button class="pg-mode pg-mode--token" role="tab" aria-selected="false" data-mode="token"><span>⛁</span> Token Bucket</button>
+        <button class="pg-mode pg-mode--compare" role="tab" aria-selected="false" data-mode="compare"><span>⇆</span> Сравнить все три</button>
+      </div>
+
       <div class="playground__settings">
         <label>
-          Алгоритм
-          <select id="algorithm">
-            <option value="/fixed">Fixed Window</option>
-            <option value="/sliding">Sliding Window</option>
-            <option value="/token">Token Bucket</option>
-          </select>
-        </label>
-        <label>
-          Лимит: <span id="limitValue">5</span> запросов
+          <span class="field__name">Лимит: <b id="limitValue">5</b> запросов</span>
           <input type="range" id="limit" min="1" max="20" value="5">
         </label>
         <label>
-          Окно: <span id="windowValue">60</span> сек
+          <span class="field__name">Окно: <b id="windowValue">60</b> сек</span>
           <input type="range" id="window" min="10" max="120" value="60">
         </label>
       </div>
 
       <div class="playground__controls">
         <button id="sendBtn" class="btn btn--primary">Отправить запрос</button>
-        <button id="spamBtn" class="btn btn--danger">Спам 10 запросов</button>
+        <button id="stopBtn" class="btn btn--danger" hidden>Стоп</button>
+        <div class="pg-scenarios" role="group" aria-label="Сценарии">
+          <span class="pg-scenarios__label">Сценарии</span>
+          <button class="pg-scn" data-scn="burst">Всплеск</button>
+          <button class="pg-scn" data-scn="steady">Постоянная нагрузка</button>
+          <button class="pg-scn" data-scn="boundary">Граница окна</button>
+        </div>
+        <span class="pg-spacer"></span>
+        <button id="resetBtn" class="btn btn--ghost">Сбросить</button>
         <button id="clearBtn" class="btn btn--ghost">Очистить лог</button>
       </div>
+      <p class="pg-hint" id="pgHint"></p>
 
-      <div class="status-bar">
+      <div class="status-bar" id="statusBar">
         <div class="status-bar__item">
           <span class="label">Лимит</span>
-          <span id="statusLimit" class="value">–</span>
+          <span id="statusLimit" class="status-bar__value">–</span>
         </div>
         <div class="status-bar__item">
           <span class="label">Осталось</span>
-          <span id="statusRemaining" class="value">–</span>
+          <span id="statusRemaining" class="status-bar__value">–</span>
         </div>
         <div class="status-bar__item">
           <span class="label">Сброс через</span>
-          <span id="statusReset" class="value">–</span>
+          <span id="statusReset" class="status-bar__value">–</span>
         </div>
         <div class="status-bar__item">
           <span class="label">Алгоритм</span>
-          <span id="statusAlgo" class="value">–</span>
+          <span id="statusAlgo" class="status-bar__value">–</span>
         </div>
       </div>
 
+      <div class="lanes" id="lanes"></div>
+      <div class="verdict" id="verdict" hidden></div>
       <div class="log" id="log"></div>
     </div>
   </section>
@@ -210,7 +231,7 @@
 
   <!-- DOCS -->
   <section class="section" id="docs">
-    <p class="section__eyebrow">Интеграция</p>
+    <p class="section__eyebrow">Демо-API</p>
     <h2 class="section__title">Один curl — и вы внутри</h2>
     <pre class="code-block"><code>curl https://ваш-домен/token
 
@@ -229,13 +250,58 @@ X-RateLimit-Algorithm: token-bucket
     </div>
   </section>
 
+  <!-- SELF-HOST -->
+  <section class="section" id="selfhost">
+    <p class="section__eyebrow">Запусти у себя</p>
+    <h2 class="section__title">Реальный rate limiting для вашего продукта</h2>
+    <p class="section__lead">Тот же код, что крутится в демо, работает на вашем сервере. Выберите, как подключить:</p>
+    <div class="algo-grid">
+      <article class="algo-card algo-card--accent">
+        <div class="algo-card__head"><span class="algo-card__icon">⇄</span><h3>Reverse proxy</h3></div>
+        <p>Ставите перед своим API — код продукта не меняется. Правила по методу и пути, ключ по IP или заголовку (например, <code>X-API-Key</code>).</p>
+        <pre class="code-block"><code>MODE=proxy
+UPSTREAM_URL=http://127.0.0.1:8080
+REDIS_URL=redis://localhost:6379
+RULES_FILE=./rateshield.rules.json
+node server.js</code></pre>
+      </article>
+      <article class="algo-card">
+        <div class="algo-card__head"><span class="algo-card__icon">{ }</span><h3>Express-middleware</h3></div>
+        <p>Для Node-приложений: подключается одной строкой, использует тот же Redis и алгоритмы.</p>
+        <pre class="code-block"><code>const { createStore, rateLimit } =
+  require('rateshield');
+const store = createStore({
+  url: process.env.REDIS_URL });
+app.use('/api', rateLimit(store, {
+  algorithm: 'sliding',
+  limit: 100, windowSec: 60 }));</code></pre>
+      </article>
+      <article class="algo-card">
+        <div class="algo-card__head"><span class="algo-card__icon">⌁</span><h3>HTTP API решений</h3></div>
+        <p>Для любого языка (Python, PHP, Go, Java): ваш бэкенд спрашивает «можно ли?» и сам решает, что ответить клиенту.</p>
+        <pre class="code-block"><code>curl -X POST $HOST/_rateshield/v1/check \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"key":"user:42","rule":"login"}'
+# {"allowed":true,"remaining":4,...}</code></pre>
+      </article>
+    </div>
+    <ul class="algo-card__list" style="margin-top:1.5rem">
+      <li>🐳 <b>Docker:</b> <code>docker compose up -d</code> поднимает сервис и Redis с сохранением данных.</li>
+      <li>🔐 <b>Безопасность по умолчанию:</b> API проверки и статистика существуют только при заданном <code>ADMIN_TOKEN</code>; IP клиента берётся из <code>X-Forwarded-For</code> лишь от доверенных прокси.</li>
+      <li>♻️ <b>Правила без рестарта:</b> изменили JSON — <code>kill -HUP</code>, и новые лимиты применены.</li>
+      <li>📖 Пошаговая инструкция для VPS (Docker + HTTPS через Caddy, либо systemd): <code>docs/SELF-HOSTING.md</code> в репозитории.</li>
+    </ul>
+  </section>
+
 </main>
 
 <footer class="footer">
-  <span>RateShield — открытый демо-проект: Node.js + Redis (или in-memory) + честные алгоритмы.</span>
+  <span>RateShield — self-hosted rate limiter: Node.js + Redis (Lua) или in-memory.</span>
   <span class="footer__meta">Fixed Window · Sliding Window · Token Bucket</span>
 </footer>
 
 <script src="/app.js"></script>
+<script src="/playground.js"></script>
 </body>
 </html>

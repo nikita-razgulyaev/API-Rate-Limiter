@@ -10,14 +10,16 @@ const state = {
     'sliding-window': { ok: 0, blocked: 0 },
     'token-bucket': { ok: 0, blocked: 0 },
   },
-  timeline: [], // last N events for the live sparkline
+  bySource: {}, // demo | proxy | check | middleware
+  timeline: [],
 };
 
-function record({ algorithm, allowed }) {
+function record({ algorithm, allowed, source = 'middleware' }) {
   const bucket = allowed ? 'ok' : 'blocked';
   state.totals[bucket] += 1;
   if (state.byAlgorithm[algorithm]) state.byAlgorithm[algorithm][bucket] += 1;
-
+  const s = (state.bySource[source] ||= { ok: 0, blocked: 0 });
+  s[bucket] += 1;
   state.timeline.push({ t: Date.now(), algorithm, allowed });
   if (state.timeline.length > MAX_TIMELINE) state.timeline.shift();
 }
@@ -28,12 +30,12 @@ function recordError() {
 
 function snapshot() {
   const total = state.totals.ok + state.totals.blocked + state.totals.error;
-  const blockRate = total ? Math.round((state.totals.blocked / total) * 1000) / 10 : 0;
   return {
     uptimeSec: Math.floor((Date.now() - state.startedAt) / 1000),
     totals: state.totals,
-    blockRatePercent: blockRate,
+    blockRatePercent: total ? Math.round((state.totals.blocked / total) * 1000) / 10 : 0,
     byAlgorithm: state.byAlgorithm,
+    bySource: state.bySource,
     timeline: state.timeline,
   };
 }

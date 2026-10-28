@@ -1,42 +1,48 @@
+'use strict';
+
+const { resolveAlgorithm } = require('../limiters');
+const { normalizeIp } = require('../core/identity');
+const { enforce, setRateLimitHeaders, sendBlocked } = require('../core/enforce');
+const { validateLimits } = require('../config/rules');
+
 /**
- * Express/Fastify-совместимый middleware
+ * Express-middleware для встраивания в своё Node-приложение.
  *
- * Использование:
- *   app.use(rateLimit(redis, { limit: 10, window: 60 }));
+ *   const { createStore, rateLimit } = require('rateshield');
+ *   const store = createStore({ url: process.env.REDIS_URL });
+ *   app.set('trust proxy', 1);                      // если стоите за nginx/Caddy/балансировщиком
+ *   app.use('/api', rateLimit(store, { algorithm: 'token', limit: 100, windowSec: 60 }));
+ *
+ * Опции: algorithm (fixed|sliding|token), limit, windowSec, keyGenerator(req),
+ *        prefix, failMode (open|closed), skip(req).
  */
+function rateLimit(store, options = {}) {
+  const algo = resolveAlgorithm(options.algorithm || 'token');
+  const { limit, windowSec } = validateLimits({
+    limit: options.limit ?? 60,
+    windowSec: options.windowSec ?? options.window ?? 60,
+  }, 'rateLimit()');
+  const prefix = options.prefix || 'rs';
+  const failMode = options.failMode || 'open';
+  const keyGenerator = options.keyGenerator || ((req) => normalizeIp(req.ip));
 
-const fixedWindow = require('../limiters/fixedWindow');
-
-function rateLimit(redis, options = {}) {
-  const limit = options.limit || 5;
-  const window = options.window || 60;
-  const keyPrefix = options.keyPrefix || 'rate';
-
-  return async function(req, res, next) {
-    const clientId = req.ip
-                  || req.headers['x-forwarded-for']?.split(',')[0]
-                  || 'unknown';
-
-    const key = keyPrefix + ':' + clientId;
-
+  return async function rateLimitMiddleware(req, res, next) {
     try {
-      const result = await fixedWindow(redis, key, limit, window);
-
-      res.setHeader('X-RateLimit-Limit', result.limit);
-      res.setHeader('X-RateLimit-Remaining', result.remaining);
-      res.setHeader('X-RateLimit-Reset', result.resetIn);
-
-      if (!result.allowed) {
-        res.status(429).json({
-          error: 'Too Many Requests',
-          retryAfter: result.resetIn
-        });
-        return;
-      }
-
-      next();
+      if (options.skip && options.skip(req)) return next();
+      const id = await keyGenerator(req);
+      const r = await enforce(store, {
+        algorithm: algo.id,
+        key: `${prefix}:mw:${algo.id}:${id}`,
+        limit,
+        windowSec,
+        failMode,
+        source: 'middleware',
+      });
+      if (!r.allowed) return sendBlocked(res, r);
+      setRateLimitHeaders(res, r);
+      return next();
     } catch (err) {
-      next(err);
+      return next(err);
     }
   };
 }

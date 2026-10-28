@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="RateShield">
+  <rect width="64" height="64" rx="14" fill="#07090a"/>
+  <rect x="1.5" y="1.5" width="61" height="61" rx="12.5" fill="none" stroke="#1f8f5c" stroke-opacity=".55" stroke-width="3"/>
+  <path d="M32 9.5 51 16.5v14.8C51 43.4 43.2 52 32 55.5 20.8 52 13 43.4 13 31.3V16.5Z" fill="#39ff9d" fill-opacity=".1" stroke="#39ff9d" stroke-width="3.6" stroke-linejoin="round"/>
+  <path d="M32 21.5 41 31 32 40.5 23 31Z" fill="#39ff9d"/>
+</svg>

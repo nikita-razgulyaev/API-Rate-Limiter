@@ -1,0 +1,14 @@
+# Render Blueprint: бесплатное демо. Redis подключите позже через REDIS_URL (например, Upstash).
+services:
+  - type: web
+    name: rateshield
+    runtime: node
+    plan: free
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /_rateshield/health
+    envVars:
+      - key: MODE
+        value: demo
+      - key: REDIS_URL
+        sync: false   # задаётся в панели Render (секрет)

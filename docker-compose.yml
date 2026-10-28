@@ -1,17 +1,43 @@
-version: '3.8'
-
+# Запуск: docker compose up -d
+# Настройки берутся из переменных окружения или файла .env рядом (см. .env.example).
+#
+# Режим proxy (боевой), пример .env:
+#   MODE=proxy
+#   UPSTREAM_URL=http://host.docker.internal:8080   # ваш API на этой же машине
+#   ADMIN_TOKEN=<openssl rand -hex 32>
+#   RULES_FILE=/app/rules/rateshield.rules.json
+# и положите rateshield.rules.json в ./rules/
 services:
-  app:
+  rateshield:
     build: .
+    restart: unless-stopped
     ports:
-      - '3000:3000'
+      - '${PORT:-3000}:3000'
     environment:
-      - PORT=3000
-      - REDIS_URL=redis://redis:6379
+      PORT: 3000
+      MODE: ${MODE:-demo}
+      REDIS_URL: redis://redis:6379
+      FAIL_MODE: ${FAIL_MODE:-open}
+      UPSTREAM_URL: ${UPSTREAM_URL:-}
+      UPSTREAM_TIMEOUT_MS: ${UPSTREAM_TIMEOUT_MS:-30000}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-}
+      RULES_FILE: ${RULES_FILE:-}
+      TRUST_PROXY: ${TRUST_PROXY:-}
+      KEY_PREFIX: ${KEY_PREFIX:-rs}
+    volumes:
+      - ./rules:/app/rules:ro
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     depends_on:
       - redis
 
   redis:
     image: redis:7-alpine
-    ports:
-      - '6379:6379'
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redis-data:/data
+    # Порт Redis наружу НЕ публикуем: доступен только сервису внутри docker-сети.
+
+volumes:
+  redis-data:
