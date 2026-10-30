@@ -327,7 +327,32 @@ code {
   background: var(--bg-card);
   border: 1px solid var(--line-soft);
   border-radius: 12px;
-  padding: 1.75rem;
+  padding: 1.25rem 1.5rem;
+}
+
+.btn--lg {
+  font-size: 0.95rem;
+  padding: 0.65rem 1.25rem;
+}
+
+.pg-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.pg-inline b {
+  color: var(--text);
+  min-width: 1.2em;
+  text-align: center;
+}
+
+.pg-inline input[type="range"] {
+  width: 80px;
+  accent-color: var(--accent);
 }
 
 .playground__settings {
@@ -365,25 +390,25 @@ code {
 
 .playground__controls {
   display: flex;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
+  gap: 0.55rem;
+  margin-bottom: 0.85rem;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .status-bar {
   background: var(--bg);
   border: 1px solid var(--line-soft);
-  border-radius: 10px;
-  padding: 1rem 1.25rem;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr)); /* 4 колонки в одну строку, ничего не переносится */
-  gap: 1rem 2rem;
-  margin-bottom: 1.25rem;
+  border-radius: 8px;
+  padding: 0.55rem 1rem;
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 0.85rem;
 }
 
-.status-bar__item { display: flex; flex-direction: column; gap: 0.25rem; }
-.status-bar__item .label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
-.status-bar__value { font-size: 1.05rem; font-weight: 600; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.status-bar__item { display: flex; flex-direction: row; align-items: baseline; gap: 0.4rem; }
+.status-bar__item .label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.status-bar__value { font-size: 0.95rem; font-weight: 600; color: var(--accent); }
 
 .log {
   background: var(--bg);
@@ -627,10 +652,10 @@ code {
 .pg-spacer { flex: 1; }
 @keyframes pgPulse { 50% { box-shadow: 0 0 0 4px rgba(57, 255, 157, 0.12); } }
 
-.pg-hint { min-height: 1.4em; margin: -0.5rem 0 1.25rem; font-size: 0.8rem; line-height: 1.55; color: var(--muted); }
+.pg-hint { min-height: 1.2em; margin: 0 0 0.9rem; font-size: 0.78rem; line-height: 1.4; color: var(--muted); }
 
 /* --- дорожки --- */
-.lanes { display: grid; gap: 1rem; margin-bottom: 1.25rem; }
+.lanes { display: grid; gap: 0.85rem; margin-bottom: 1rem; }
 .lanes--compare { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 @media (max-width: 980px) { .lanes--compare { grid-template-columns: 1fr; } }
 
@@ -639,27 +664,27 @@ code {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
-  padding: 1rem 1.1rem;
+  gap: 0.65rem;
+  padding: 0.85rem 1rem;
   background: var(--bg);
   border: 1px solid var(--line-soft);
   border-top: 2px solid var(--c);
-  border-radius: 12px;
+  border-radius: 10px;
 }
 .lane--fixed { --c: var(--c-fixed); }
 .lane--sliding { --c: var(--c-sliding); }
 .lane--token { --c: var(--c-token); }
 
-.lane__head { display: flex; align-items: flex-start; gap: 0.75rem; }
-.lane__icon { font-size: 1.3rem; line-height: 1; color: var(--c); }
-.lane__title { font-size: 0.95rem; font-weight: 700; }
-.lane__sub { margin-top: 0.2rem; font-size: 0.72rem; line-height: 1.45; color: var(--muted); }
-.lane__tally { margin-left: auto; display: flex; gap: 0.4rem; flex-shrink: 0; }
-.tally { padding: 0.2rem 0.55rem; border-radius: 999px; font-size: 0.72rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.lane__head { display: flex; align-items: center; gap: 0.6rem; }
+.lane__icon { font-size: 1.15rem; line-height: 1; color: var(--c); }
+.lane__title { font-size: 0.9rem; font-weight: 700; }
+.lane__sub { display: none; }
+.lane__tally { margin-left: auto; display: flex; gap: 0.35rem; flex-shrink: 0; }
+.tally { padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .tally--ok { color: var(--accent); background: rgba(57, 255, 157, 0.1); }
 .tally--bad { color: var(--red); background: rgba(255, 95, 95, 0.1); }
 
-.lane__viz { min-height: 104px; display: flex; flex-direction: column; justify-content: flex-start; gap: 0.7rem; padding-top: 0.2rem; }
+.lane__viz { min-height: 72px; display: flex; flex-direction: column; justify-content: flex-start; gap: 0.5rem; }
 
 /* Fixed: сплошные блоки + ОДИН общий таймер окна */
 .cells { display: grid; gap: 6px; grid-template-columns: repeat(auto-fill, minmax(26px, 1fr)); }
@@ -695,21 +720,20 @@ code {
 .meter__bar { height: 100%; width: 0; border-radius: inherit; background: var(--c); }
 .meter__label { font-size: 0.7rem; color: var(--muted); line-height: 1.4; }
 
-.lane__explain { min-height: 3em; font-size: 0.8rem; line-height: 1.55; }
+.lane__explain { min-height: 1.3em; font-size: 0.78rem; line-height: 1.4; color: var(--muted); }
 .lane__explain b { color: var(--c); }
+.lane__explain.is-blocked { color: var(--red); }
 .lane__explain.is-blocked b { color: var(--red); }
 
 /* лента решений: каждый запрос — точка, едут влево со временем */
-.strip { position: relative; height: 26px; overflow: hidden; border-radius: 7px; border: 1px solid var(--line-soft); background: rgba(255, 255, 255, 0.025); }
+.strip { position: relative; height: 22px; overflow: hidden; border-radius: 6px; border: 1px solid var(--line-soft); background: rgba(255, 255, 255, 0.025); }
 .strip__now { position: absolute; top: 0; bottom: 0; right: 0; width: 2px; background: var(--line); }
 .strip__mark { position: absolute; top: 0; bottom: 0; border-left: 1px dashed color-mix(in srgb, var(--c) 75%, transparent); }
-.strip__dot { position: absolute; top: 50%; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 50%; background: var(--accent); }
+.strip__dot { position: absolute; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--accent); }
 .strip__dot.is-bad { border-radius: 2px; background: var(--red); transform: rotate(45deg); }
-.strip__cap { display: flex; justify-content: space-between; margin-top: 0.3rem; font-size: 0.64rem; color: var(--muted); }
+.strip__cap { display: none; }
 
-.lane__foot { font-size: 0.72rem; color: var(--muted); min-height: 1.2em; }
-.lane__foot b { color: var(--text); }
-.lane__foot b.is-over { color: var(--amber); }
+.lane__foot { display: none; }
 
 /* --- итог сценария --- */
 .verdict { margin-bottom: 1.25rem; padding: 1rem 1.2rem; border: 1px solid var(--accent-dim); border-radius: 12px; background: rgba(57, 255, 157, 0.05); animation: slideIn 0.3s ease; }
@@ -729,24 +753,15 @@ code {
 .chip--sliding { color: var(--c-sliding); }
 .chip--token { color: var(--c-token); }
 
-/* В режиме сравнения выравниваем блоки дорожек по одной сетке */
-.lanes--compare .lane__sub { min-height: 5.8em; }
-.lanes--compare .lane__explain { min-height: 4.7em; }
-@media (max-width: 980px) {
-  .lanes--compare .lane__sub, .lanes--compare .lane__explain { min-height: 0; }
-}
+/* Одиночный режим — крупнее визуал */
+.lanes--single .lane__viz { min-height: 96px; }
+.lanes--single .cells { grid-template-columns: repeat(auto-fill, minmax(40px, 64px)); gap: 8px; }
+.lanes--single .cells--slots { grid-template-columns: repeat(auto-fill, minmax(52px, 80px)); }
+.lanes--single .cell, .lanes--single .slot { height: 32px; border-radius: 6px; }
+.lanes--single .tokens { grid-template-columns: repeat(auto-fill, 32px); gap: 8px; }
+.lanes--single .tok { width: 32px; height: 32px; }
 
-/* В одиночном режиме элементы крупнее — есть место */
-.lanes--single .lane__viz { min-height: 120px; }
-.lanes--single .cells { grid-template-columns: repeat(auto-fill, minmax(44px, 72px)); gap: 8px; }
-.lanes--single .cells--slots { grid-template-columns: repeat(auto-fill, minmax(60px, 96px)); }
-.lanes--single .cell, .lanes--single .slot { height: 38px; border-radius: 7px; }
-.lanes--single .tokens { grid-template-columns: repeat(auto-fill, 36px); gap: 10px; }
-.lanes--single .tok { width: 36px; height: 36px; }
-.lanes--single .lane__explain { min-height: 2.6em; font-size: 0.86rem; }
-
-/* Вторичные кнопки в панели управления компактнее, чтобы ряд не переносился */
-#resetBtn, #clearBtn { padding: 0.7rem 1rem; font-size: 0.8rem; }
+#resetBtn { padding: 0.55rem 0.9rem; font-size: 0.78rem; }
 
 @media (max-width: 560px) {
   .pg-modes { display: grid; grid-template-columns: 1fr 1fr; }

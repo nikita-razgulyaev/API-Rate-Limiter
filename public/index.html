@@ -136,64 +136,53 @@
   <section class="section" id="playground">
     <p class="section__eyebrow">Живой стенд</p>
     <h2 class="section__title">Playground</h2>
-    <p class="section__lead">Выбери алгоритм или сравни все три на одном и том же потоке запросов. Ползунки и сценарии работают на реальном бэкенде — запросы считаются по твоему IP.</p>
+    <p class="section__lead">Нажмите «Отправить» несколько раз — смотрите, как срабатывает лимит.</p>
 
     <div class="playground" id="pg">
-      <div class="pg-modes" role="tablist" aria-label="Режим плейграунда">
-        <button class="pg-mode pg-mode--fixed is-active" role="tab" aria-selected="true" data-mode="fixed"><span>▦</span> Fixed Window</button>
-        <button class="pg-mode pg-mode--sliding" role="tab" aria-selected="false" data-mode="sliding"><span>◔</span> Sliding Window</button>
-        <button class="pg-mode pg-mode--token" role="tab" aria-selected="false" data-mode="token"><span>⛁</span> Token Bucket</button>
-        <button class="pg-mode pg-mode--compare" role="tab" aria-selected="false" data-mode="compare"><span>⇆</span> Сравнить все три</button>
-      </div>
-
-      <div class="playground__settings">
-        <label>
-          <span class="field__name">Лимит: <b id="limitValue">5</b> запросов</span>
-          <input type="range" id="limit" min="1" max="20" value="5">
-        </label>
-        <label>
-          <span class="field__name">Окно: <b id="windowValue">60</b> сек</span>
-          <input type="range" id="window" min="10" max="120" value="60">
-        </label>
+      <div class="pg-modes" role="tablist" aria-label="Режим">
+        <button class="pg-mode pg-mode--fixed is-active" role="tab" aria-selected="true" data-mode="fixed"><span>▦</span> Fixed</button>
+        <button class="pg-mode pg-mode--sliding" role="tab" aria-selected="false" data-mode="sliding"><span>◔</span> Sliding</button>
+        <button class="pg-mode pg-mode--token" role="tab" aria-selected="false" data-mode="token"><span>⛁</span> Token</button>
+        <button class="pg-mode pg-mode--compare" role="tab" aria-selected="false" data-mode="compare"><span>⇆</span> Все три</button>
       </div>
 
       <div class="playground__controls">
-        <button id="sendBtn" class="btn btn--primary">Отправить запрос</button>
+        <button id="sendBtn" class="btn btn--primary btn--lg">Отправить</button>
         <button id="stopBtn" class="btn btn--danger" hidden>Стоп</button>
-        <div class="pg-scenarios" role="group" aria-label="Сценарии">
-          <span class="pg-scenarios__label">Сценарии</span>
-          <button class="pg-scn" data-scn="burst">Всплеск</button>
-          <button class="pg-scn" data-scn="steady">Постоянная нагрузка</button>
-          <button class="pg-scn" data-scn="boundary">Граница окна</button>
-        </div>
+        <button class="pg-scn" data-scn="burst">Всплеск</button>
+        <button class="pg-scn" data-scn="boundary">Граница окна</button>
+        <button id="resetBtn" class="btn btn--ghost">Сброс</button>
         <span class="pg-spacer"></span>
-        <button id="resetBtn" class="btn btn--ghost">Сбросить</button>
-        <button id="clearBtn" class="btn btn--ghost">Очистить лог</button>
+        <label class="pg-inline">
+          Лимит <b id="limitValue">5</b>
+          <input type="range" id="limit" min="1" max="15" value="5">
+        </label>
+        <label class="pg-inline">
+          Окно <b id="windowValue">15</b>с
+          <input type="range" id="window" min="5" max="60" value="15">
+        </label>
       </div>
-      <p class="pg-hint" id="pgHint"></p>
 
-      <div class="status-bar" id="statusBar">
-        <div class="status-bar__item">
-          <span class="label">Лимит</span>
-          <span id="statusLimit" class="status-bar__value">–</span>
-        </div>
+      <p class="pg-hint" id="pgHint">Нажмите «Отправить» 6–7 раз подряд</p>
+
+      <div class="status-bar" id="statusBar" hidden>
         <div class="status-bar__item">
           <span class="label">Осталось</span>
           <span id="statusRemaining" class="status-bar__value">–</span>
         </div>
         <div class="status-bar__item">
-          <span class="label">Сброс через</span>
+          <span class="label">Сброс</span>
           <span id="statusReset" class="status-bar__value">–</span>
         </div>
-        <div class="status-bar__item">
-          <span class="label">Алгоритм</span>
-          <span id="statusAlgo" class="status-bar__value">–</span>
-        </div>
       </div>
+      <!-- hidden fields kept for JS compatibility -->
+      <span id="statusLimit" hidden></span>
+      <span id="statusAlgo" hidden></span>
 
       <div class="lanes" id="lanes"></div>
       <div class="verdict" id="verdict" hidden></div>
-      <div class="log" id="log"></div>
+      <div class="log" id="log" hidden></div>
+      <button id="clearBtn" hidden>clear</button>
     </div>
   </section>
 

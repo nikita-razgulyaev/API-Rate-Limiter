@@ -17,22 +17,22 @@
   const ALGOS = {
     fixed: {
       path: '/fixed', name: 'Fixed Window', icon: '▦', chip: 'Fixed',
-      how: 'Один счётчик на окно. Когда окно заканчивается, счётчик обнуляется разом.',
+      how: '',
     },
     sliding: {
       path: '/sliding', name: 'Sliding Window', icon: '◔', chip: 'Sliding',
-      how: 'Каждый запрос занимает слот на всё окно и освобождает его сам, независимо от других.',
+      how: '',
     },
     token: {
       path: '/token', name: 'Token Bucket', icon: '⛁', chip: 'Token',
-      how: 'Токены капают в бакет непрерывно. Запрос забирает один: всплеск допустим, средний темп держится.',
+      how: '',
     },
   };
 
   const S = {
     mode: 'fixed',
     limit: 5,
-    windowSec: 60,
+    windowSec: 15, // короче по умолчанию — чтобы обычному человеку было видно сброс
     sid: rid(),
     lanes: {},
     run: null,
@@ -57,22 +57,15 @@
       this.el.innerHTML = `
         <header class="lane__head">
           <span class="lane__icon">${this.meta.icon}</span>
-          <div>
-            <h3 class="lane__title">${this.meta.name}</h3>
-            <p class="lane__sub">${this.meta.how}</p>
-          </div>
+          <h3 class="lane__title">${this.meta.name}</h3>
           <div class="lane__tally">
-            <span class="tally tally--ok" data-ok title="принято">0</span>
-            <span class="tally tally--bad" data-bad title="отклонено (429)">0</span>
+            <span class="tally tally--ok" data-ok title="ок">0</span>
+            <span class="tally tally--bad" data-bad title="отказ">0</span>
           </div>
         </header>
         <div class="lane__viz">${this.vizHtml()}</div>
         <p class="lane__explain" data-explain></p>
-        <div>
-          <div class="strip" data-strip><i class="strip__now"></i></div>
-          <div class="strip__cap"><span>−30 с</span><span>решения по запросам</span><span>сейчас</span></div>
-        </div>
-        <div class="lane__foot" data-foot></div>`;
+        <div class="strip" data-strip><i class="strip__now"></i></div>`;
       host.appendChild(this.el);
 
       const q = (sel) => this.el.querySelector(sel);
@@ -81,7 +74,8 @@
       this.meterLabelEl = q('[data-meterlabel]');
       this.explainEl = q('[data-explain]');
       this.stripEl = q('[data-strip]');
-      this.footEl = q('[data-foot]');
+      this.footEl = { textContent: '', innerHTML: '', style: {} }; // stub — foot removed
+      this.cache = this.cache || {};
       this.okEl = q('[data-ok]');
       this.badEl = q('[data-bad]');
       this.reset();
@@ -95,7 +89,7 @@
       }
       if (this.key === 'sliding') {
         return `<div class="cells cells--slots" data-cells></div>
-                <div class="meter__label" data-meterlabel>Каждая полоска — отдельный запрос. Она тает и освобождает слот сама.</div>`;
+                <div class="meter__label" data-meterlabel></div>`;
       }
       return `<div class="tokens" data-cells></div>
               <div class="meter"><div class="meter__bar" data-meter></div></div>
@@ -188,7 +182,7 @@
         this.items.forEach((el, i) => el.classList.toggle('is-on', i < cur));
         const left = active ? this.windowEnd - now : 0;
         this.meterEl.style.width = `${((left / W) * 100).toFixed(1)}%`;
-        this.setText(this.meterLabelEl, 'ml', active ? `до сброса окна: <b>${fmtS(left)}</b>` : 'окно откроется первым запросом');
+        this.setText(this.meterLabelEl, 'ml', active ? `сброс через <b>${fmtS(left)}</b>` : 'ожидание');
 
         if (this.wasActive && !active) {
           this.el.classList.add('is-reset-flash');
@@ -196,12 +190,12 @@
         }
         this.wasActive = active;
 
-        if (!st) explain = `Окно ещё не открыто. Первый запрос запустит его на <b>${S.windowSec} с</b>.`;
-        else if (!active) explain = `Окно закончилось: счётчик <b>обнулён</b>, снова доступно ${L}.`;
+        if (!st) explain = `Первый запрос откроет окно на <b>${S.windowSec} с</b>`;
+        else if (!active) explain = `Окно закончилось — счётчик обнулился`;
         else if (st.current >= L) {
           blocked = true;
-          explain = `Лимит окна исчерпан: <b>${L}/${L}</b>. До сброса все запросы получат 429. Разблокировка произойдёт <b>разом</b> через <b>${fmtS(left)}</b>.`;
-        } else explain = `Окно: <b>${cur}/${L}</b>. Счётчик обнулится целиком через <b>${fmtS(left)}</b>.`;
+          explain = `Лимит <b>${L}/${L}</b> · сброс через <b>${fmtS(left)}</b>`;
+        } else explain = `<b>${cur}/${L}</b> · сброс через <b>${fmtS(left)}</b>`;
       }
 
       if (this.key === 'sliding') {
@@ -212,11 +206,11 @@
           el.classList.toggle('is-on', Boolean(s));
           el.firstChild.style.width = s ? `${Math.max(0, ((s.exp - now) / W) * 100).toFixed(1)}%` : '0%';
         });
-        if (n === 0) explain = `Окно пусто: свободны все <b>${L}</b> слотов.`;
+        if (n === 0) explain = `Свободно <b>${L}</b> слотов`;
         else if (n >= L) {
           blocked = true;
-          explain = `В окне <b>${n}/${L}</b>. Ближайший слот освободится через <b>${fmtS(this.slots[0].exp - now)}</b>. Отклонённые запросы слоты не занимают.`;
-        } else explain = `В окне <b>${n}/${L}</b>. Старейший запрос покинет окно через <b>${fmtS(this.slots[0].exp - now)}</b>, слоты освобождаются по одному.`;
+          explain = `Занято <b>${n}/${L}</b> · слот через <b>${fmtS(this.slots[0].exp - now)}</b>`;
+        } else explain = `<b>${n}/${L}</b> · слот через <b>${fmtS(this.slots[0].exp - now)}</b>`;
       }
 
       if (this.key === 'token') {
@@ -232,15 +226,15 @@
         const full1 = tokens >= L - 1e-9;
         this.meterEl.style.width = full1 ? '100%' : `${(frac * 100).toFixed(1)}%`;
         const nextMs = ((1 - frac) / refill) * 1000;
-        this.setText(this.meterLabelEl, 'ml', full1 ? 'бакет полон' : `следующий токен через <b>${fmtS(nextMs)}</b>`);
+        this.setText(this.meterLabelEl, 'ml', full1 ? 'бак полон' : `+1 через <b>${fmtS(nextMs)}</b>`);
 
         if (st && tokens < 1) {
           blocked = true;
-          explain = `Токены закончились (<b>${fmtTok(tokens)}</b>). Дальше запросы проходят по одному, в темпе пополнения: +1 токен каждые <b>${fmtN(1 / refill)} с</b>.`;
+          explain = `Токены кончились · +1 каждые <b>${fmtN(1 / refill)} с</b>`;
         } else if (full1) {
-          explain = `Бакет полон: сразу можно отправить <b>${L}</b> запросов подряд (всплеск). Пополнение: +1 токен каждые <b>${fmtN(1 / refill)} с</b>.`;
+          explain = `Бак полон · можно <b>${L}</b> подряд`;
         } else {
-          explain = `В бакете <b>${fmtTok(tokens)}</b> из ${L}. Токены капают непрерывно: +1 каждые <b>${fmtN(1 / refill)} с</b>.`;
+          explain = `<b>${fmtTok(tokens)}</b> / ${L} · +1 каждые <b>${fmtN(1 / refill)} с</b>`;
         }
       }
 
@@ -254,8 +248,8 @@
         this.footEl,
         'foot',
         this.acc.length
-          ? `Пик принятых: <b class="${pk.n > L && this.key !== 'token' ? 'is-over' : ''}">${pk.n}</b>${pk.n > 1 ? ` за ${fmtS(pk.ms)}` : ''} ${this.key === 'token' ? `(ёмкость ${L} + пополнение)` : `(лимит ${L} на ${S.windowSec} с)`}`
-          : 'Принятых запросов пока нет',
+          ? `Максимум принятых подряд: <b class="${pk.n > L && this.key !== 'token' ? 'is-over' : ''}">${pk.n}</b>${pk.n > 1 ? ` за ${fmtS(pk.ms)}` : ''} ${this.key === 'token' ? `(бак ${L} + капли)` : `(лимит ${L} / ${S.windowSec} с)`}`
+          : 'Пока ни одного принятого запроса',
       );
     }
 
@@ -304,8 +298,8 @@
 
   function defaultHint() {
     return S.mode === 'compare'
-      ? 'Каждый запрос уходит на все три алгоритма одновременно, а реакция у каждого своя. Запусти сценарий и сравни.'
-      : 'Отправляй запросы вручную или запусти сценарий. Всё на дорожке живёт во времени: таймеры идут, токены капают.';
+      ? 'Один клик — запрос во все три алгоритма сразу'
+      : 'Нажмите «Отправить» 6–7 раз подряд';
   }
 
   function buildLanes() {
@@ -313,7 +307,7 @@
     S.lanes = {};
     lanesHost.className = 'lanes ' + (S.mode === 'compare' ? 'lanes--compare' : 'lanes--single');
     activeKeys().forEach((k) => { S.lanes[k] = new Lane(k, lanesHost); });
-    $('statusBar').hidden = S.mode === 'compare';
+    $('statusBar').hidden = true; // показываем только после первого ответа
   }
 
   function resetStatusBar() {
@@ -405,9 +399,10 @@
   }
 
   function updateStatusBar(res) {
+    $('statusBar').hidden = false;
     $('statusLimit').textContent = res.headers.get('X-RateLimit-Limit');
     $('statusRemaining').textContent = res.headers.get('X-RateLimit-Remaining');
-    $('statusReset').textContent = res.headers.get('X-RateLimit-Reset') + 'с';
+    $('statusReset').textContent = (res.headers.get('X-RateLimit-Reset') || '–') + 'с';
     $('statusAlgo').textContent = res.headers.get('X-RateLimit-Algorithm');
   }
 
@@ -444,7 +439,7 @@
     burst: {
       title: 'Всплеск',
       params: [5, 15],
-      hint: 'Сразу 10 запросов (вдвое больше лимита), затем «проба» каждые 2 секунды. Смотри, как каждый алгоритм возвращается к жизни после блокировки.',
+      hint: 'Много запросов сразу, потом редкие проверки',
       async run(c) {
         const n = Math.min(c.limit * 2, 30);
         for (let i = 0; i < n; i++) { await c.fire(); await c.sleep(30); }
@@ -454,32 +449,24 @@
           await c.fire();
         }
       },
-      verdict: (lanes, { L, W }) => `Сразу после всплеска блокируются все. Дальше по-разному: Fixed Window и Sliding Window возвращают доступ целиком, когда истекает окно, а Token Bucket отдаёт его по одному запросу каждые <b>${fmtN(W / L)} с</b>.`,
+      verdict: (lanes, { L, W }) => `После всплеска: Fixed и Sliding ждут конца окна, Token отдаёт по 1 каждые <b>${fmtN(W / L)} с</b>.`,
     },
     steady: {
-      title: 'Постоянная нагрузка',
+      title: 'Постоянно',
       params: [5, 10],
-      hint: 'Запрос каждую секунду в течение 20 секунд: вдвое чаще допустимого. Сравни «ритм» зелёных и красных точек на лентах.',
+      hint: 'Запрос каждую секунду',
       async run(c) {
         const t0 = Date.now();
         for (let i = 0; i < 20; i++) { await c.sleepUntil(t0 + i * 1000); await c.fire(); }
       },
-      verdict: (lanes, { L, W }) => {
-        const n = (k) => (lanes[k] ? lanes[k].ok : null);
-        const t = n('token');
-        const f = n('fixed');
-        const tokenNote = t !== null && f !== null && t > f
-          ? ` Token Bucket принял больше (<b>${t}</b> против <b>${f}</b>): бакет стартует полным, это запас на всплеск, а потом он пропускает ровно в темпе пополнения (1 запрос каждые <b>${fmtN(W / L)} с</b>).`
-          : ` Token Bucket после стартового запаса пропускает ровно в темпе пополнения: 1 запрос каждые <b>${fmtN(W / L)} с</b>.`;
-        return `Fixed Window и Sliding Window пропускают пачкой: ${L} запросов подряд, затем пауза, пока не освободится окно. В этом сценарии они ведут себя почти одинаково, разницу между ними покажет «Граница окна».${tokenNote}`;
-      },
+      verdict: (lanes, { L, W }) => `Fixed и Sliding — пачками по ${L}. Token — ровно 1 каждые <b>${fmtN(W / L)} с</b>.`,
     },
     boundary: {
       title: 'Граница окна',
       params: [5, 10],
-      hint: 'Классический изъян Fixed Window: 5 запросов в самом конце окна и ещё 5 сразу после сброса. Sliding Window и Token Bucket на такое не поддаются.',
+      hint: 'Лимит в конце окна + сразу после сброса',
       async run(c) {
-        await c.fire(); // первый запрос открывает окно
+        await c.fire();
         const end = c.windowEnd() || (Date.now() + c.windowSec * 1000);
         await c.sleepUntil(end - 900);
         for (let i = 0; i < c.limit - 1; i++) { await c.fire(); await c.sleep(50); }
@@ -489,10 +476,10 @@
       verdict: (lanes, { L, W }) => {
         const f = lanes.fixed && lanes.fixed.peak();
         if (f && f.n > L) {
-          return `<b>Fixed Window</b> пропустил <b>${f.n}</b> запросов за <b>${fmtS(f.ms)}</b>, хотя лимит ${L} на ${W} с: на стыке окон счётчик обнуляется. Sliding Window держит лимит в любом промежутке, а Token Bucket ограничен ёмкостью бакета и скоростью его пополнения.`;
+          return `<b>Fixed</b> пропустил <b>${f.n}</b> за <b>${fmtS(f.ms)}</b> (лимит ${L}) — стык окон. Sliding и Token держат лимит.`;
         }
-        if (f) return 'Fixed Window в этот раз не поймал стык окон (задержка сети сдвинула запросы). Запусти сценарий ещё раз.';
-        return 'Сравни пики принятых запросов в подписях дорожек: они показывают, сколько запросов реально прошло за короткий промежуток.';
+        if (f) return 'Стык не поймался — запустите ещё раз.';
+        return 'Сравните, сколько прошло у каждого.';
       },
     },
   };
